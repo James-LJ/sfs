@@ -6,19 +6,19 @@
 #include <linux/module.h>
 
 #include "bitmap.h"
-#include "simplefs.h"
+#include "sfs.h"
 
-static const struct inode_operations simplefs_inode_ops;
+static const struct inode_operations sfs_inode_ops;
 
 /*
  * Get inode ino from disk.
  */
-struct inode *simplefs_iget(struct super_block *sb, unsigned long ino)
+struct inode *sfs_iget(struct super_block *sb, unsigned long ino)
 {
     struct inode *inode = NULL;
-    struct simplefs_inode *cinode = NULL;
-    struct simplefs_inode_info *ci = NULL;
-    struct simplefs_sb_info *sbi = SIMPLEFS_SB(sb);
+    struct sfs_inode *cinode = NULL;
+    struct sfs_inode_info *ci = NULL;
+    struct sfs_sb_info *sbi = SIMPLEFS_SB(sb);
     struct buffer_head *bh = NULL;
     uint32_t inode_block = (ino / SIMPLEFS_INODES_PER_BLOCK) + 1;
     uint32_t inode_shift = ino % SIMPLEFS_INODES_PER_BLOCK;
@@ -44,12 +44,12 @@ struct inode *simplefs_iget(struct super_block *sb, unsigned long ino)
         ret = -EIO;
         goto failed;
     }
-    cinode = (struct simplefs_inode *) bh->b_data;
+    cinode = (struct sfs_inode *) bh->b_data;
     cinode += inode_shift;
 
     inode->i_ino = ino;
     inode->i_sb = sb;
-    inode->i_op = &simplefs_inode_ops;
+    inode->i_op = &sfs_inode_ops;
 
     inode->i_mode = le32_to_cpu(cinode->i_mode);
     i_uid_write(inode, le32_to_cpu(cinode->i_uid));
@@ -67,10 +67,10 @@ struct inode *simplefs_iget(struct super_block *sb, unsigned long ino)
     ci->index_block = le32_to_cpu(cinode->index_block);
 
     if (S_ISDIR(inode->i_mode)) {
-        inode->i_fop = &simplefs_dir_ops;
+        inode->i_fop = &sfs_dir_ops;
     } else if (S_ISREG(inode->i_mode)) {
-        inode->i_fop = &simplefs_file_ops;
-        inode->i_mapping->a_ops = &simplefs_aops;
+        inode->i_fop = &sfs_file_ops;
+        inode->i_mapping->a_ops = &sfs_aops;
     }
 
     brelse(bh);
@@ -91,16 +91,16 @@ failed:
  * Fill dentry with NULL if not in dir, with the corresponding inode if found.
  * Returns NULL on success.
  */
-static struct dentry *simplefs_lookup(struct inode *dir,
+static struct dentry *sfs_lookup(struct inode *dir,
                                       struct dentry *dentry,
                                       unsigned int flags)
 {
     struct super_block *sb = dir->i_sb;
-    struct simplefs_inode_info *ci_dir = SIMPLEFS_INODE(dir);
+    struct sfs_inode_info *ci_dir = SIMPLEFS_INODE(dir);
     struct inode *inode = NULL;
     struct buffer_head *bh = NULL;
-    struct simplefs_dir_block *dblock = NULL;
-    struct simplefs_file *f = NULL;
+    struct sfs_dir_block *dblock = NULL;
+    struct sfs_file *f = NULL;
     int i;
 
     /* Check filename length */
@@ -111,7 +111,7 @@ static struct dentry *simplefs_lookup(struct inode *dir,
     bh = sb_bread(sb, ci_dir->index_block);
     if (!bh)
         return ERR_PTR(-EIO);
-    dblock = (struct simplefs_dir_block *) bh->b_data;
+    dblock = (struct sfs_dir_block *) bh->b_data;
 
     /* Search for the file in directory */
     for (i = 0; i < SIMPLEFS_MAX_SUBFILES; i++) {
@@ -119,7 +119,7 @@ static struct dentry *simplefs_lookup(struct inode *dir,
         if (!f->inode)
             break;
         if (!strncmp(f->filename, dentry->d_name.name, SIMPLEFS_FILENAME_LEN)) {
-            inode = simplefs_iget(sb, f->inode);
+            inode = sfs_iget(sb, f->inode);
             break;
         }
     }
@@ -138,12 +138,12 @@ static struct dentry *simplefs_lookup(struct inode *dir,
 /*
  * Create a new inode in dir.
  */
-static struct inode *simplefs_new_inode(struct inode *dir, mode_t mode)
+static struct inode *sfs_new_inode(struct inode *dir, mode_t mode)
 {
     struct inode *inode;
-    struct simplefs_inode_info *ci;
+    struct sfs_inode_info *ci;
     struct super_block *sb;
-    struct simplefs_sb_info *sbi;
+    struct sfs_sb_info *sbi;
     uint32_t ino, bno;
     int ret;
 
@@ -166,7 +166,7 @@ static struct inode *simplefs_new_inode(struct inode *dir, mode_t mode)
     if (!ino)
         return ERR_PTR(-ENOSPC);
 
-    inode = simplefs_iget(sb, ino);
+    inode = sfs_iget(sb, ino);
     if (IS_ERR(inode)) {
         ret = PTR_ERR(inode);
         goto put_ino;
@@ -186,12 +186,12 @@ static struct inode *simplefs_new_inode(struct inode *dir, mode_t mode)
     inode->i_blocks = 1;
     if (S_ISDIR(mode)) {
         inode->i_size = SIMPLEFS_BLOCK_SIZE;
-        inode->i_fop = &simplefs_dir_ops;
+        inode->i_fop = &sfs_dir_ops;
         set_nlink(inode, 2); /* . and .. */
     } else if (S_ISREG(mode)) {
         inode->i_size = 0;
-        inode->i_fop = &simplefs_file_ops;
-        inode->i_mapping->a_ops = &simplefs_aops;
+        inode->i_fop = &sfs_file_ops;
+        inode->i_mapping->a_ops = &sfs_aops;
         set_nlink(inode, 1);
     }
 
@@ -214,15 +214,15 @@ put_ino:
  *   - cleanup index block of the new inode
  *   - add new file/directory in parent index
  */
-static int simplefs_create(struct inode *dir,
+static int sfs_create(struct inode *dir,
                            struct dentry *dentry,
                            umode_t mode,
                            bool excl)
 {
     struct super_block *sb;
     struct inode *inode;
-    struct simplefs_inode_info *ci_dir;
-    struct simplefs_dir_block *dblock;
+    struct sfs_inode_info *ci_dir;
+    struct sfs_dir_block *dblock;
     char *fblock;
     struct buffer_head *bh, *bh2;
     int ret = 0, i;
@@ -238,7 +238,7 @@ static int simplefs_create(struct inode *dir,
     if (!bh)
         return -EIO;
 
-    dblock = (struct simplefs_dir_block *) bh->b_data;
+    dblock = (struct sfs_dir_block *) bh->b_data;
 
     /* Check if parent directory is full */
     if (dblock->files[SIMPLEFS_MAX_SUBFILES - 1].inode != 0) {
@@ -247,7 +247,7 @@ static int simplefs_create(struct inode *dir,
     }
 
     /* Get a new free inode */
-    inode = simplefs_new_inode(dir, mode);
+    inode = sfs_new_inode(dir, mode);
     if (IS_ERR(inode)) {
         ret = PTR_ERR(inode);
         goto end;
@@ -305,14 +305,14 @@ end:
  *   - cleanup file index block
  *   - cleanup inode
  */
-static int simplefs_unlink(struct inode *dir, struct dentry *dentry)
+static int sfs_unlink(struct inode *dir, struct dentry *dentry)
 {
     struct super_block *sb = dir->i_sb;
-    struct simplefs_sb_info *sbi = SIMPLEFS_SB(sb);
+    struct sfs_sb_info *sbi = SIMPLEFS_SB(sb);
     struct inode *inode = d_inode(dentry);
     struct buffer_head *bh = NULL, *bh2 = NULL;
-    struct simplefs_dir_block *dir_block = NULL;
-    struct simplefs_file_index_block *file_block = NULL;
+    struct sfs_dir_block *dir_block = NULL;
+    struct sfs_file_index_block *file_block = NULL;
     int i, f_id = -1, nr_subs = 0;
 
     uint32_t ino = inode->i_ino;
@@ -322,7 +322,7 @@ static int simplefs_unlink(struct inode *dir, struct dentry *dentry)
     bh = sb_bread(sb, SIMPLEFS_INODE(dir)->index_block);
     if (!bh)
         return -EIO;
-    dir_block = (struct simplefs_dir_block *) bh->b_data;
+    dir_block = (struct sfs_dir_block *) bh->b_data;
 
     /* Search for inode in parent index and get number of subfiles */
     for (i = 0; i < SIMPLEFS_MAX_SUBFILES; i++) {
@@ -336,8 +336,8 @@ static int simplefs_unlink(struct inode *dir, struct dentry *dentry)
     /* Remove file from parent directory */
     if (f_id != SIMPLEFS_MAX_SUBFILES - 1)
         memmove(dir_block->files + f_id, dir_block->files + f_id + 1,
-                (nr_subs - f_id - 1) * sizeof(struct simplefs_file));
-    memset(&dir_block->files[nr_subs - 1], 0, sizeof(struct simplefs_file));
+                (nr_subs - f_id - 1) * sizeof(struct sfs_file));
+    memset(&dir_block->files[nr_subs - 1], 0, sizeof(struct sfs_file));
     mark_buffer_dirty(bh);
     brelse(bh);
 
@@ -356,7 +356,7 @@ static int simplefs_unlink(struct inode *dir, struct dentry *dentry)
     bh = sb_bread(sb, bno);
     if (!bh)
         goto clean_inode;
-    file_block = (struct simplefs_file_index_block *) bh->b_data;
+    file_block = (struct sfs_file_index_block *) bh->b_data;
     if (S_ISDIR(inode->i_mode))
         goto scrub;
     for (i = 0; i < inode->i_blocks - 1; i++) {
@@ -399,18 +399,18 @@ clean_inode:
     return 0;
 }
 
-static int simplefs_rename(struct inode *old_dir,
+static int sfs_rename(struct inode *old_dir,
                            struct dentry *old_dentry,
                            struct inode *new_dir,
                            struct dentry *new_dentry,
                            unsigned int flags)
 {
     struct super_block *sb = old_dir->i_sb;
-    struct simplefs_inode_info *ci_old = SIMPLEFS_INODE(old_dir);
-    struct simplefs_inode_info *ci_new = SIMPLEFS_INODE(new_dir);
+    struct sfs_inode_info *ci_old = SIMPLEFS_INODE(old_dir);
+    struct sfs_inode_info *ci_new = SIMPLEFS_INODE(new_dir);
     struct inode *src = d_inode(old_dentry);
     struct buffer_head *bh_old = NULL, *bh_new = NULL;
-    struct simplefs_dir_block *dir_block = NULL;
+    struct sfs_dir_block *dir_block = NULL;
     int i, f_id = -1, new_pos = -1, ret, nr_subs, f_pos = -1;
 
     /* fail with these unsupported flags */
@@ -425,7 +425,7 @@ static int simplefs_rename(struct inode *old_dir,
     bh_new = sb_bread(sb, ci_new->index_block);
     if (!bh_new)
         return -EIO;
-    dir_block = (struct simplefs_dir_block *) bh_new->b_data;
+    dir_block = (struct sfs_dir_block *) bh_new->b_data;
     for (i = 0; i < SIMPLEFS_MAX_SUBFILES; i++) {
         /* if old_dir == new_dir, save the renamed file position */
         if (new_dir == old_dir) {
@@ -474,7 +474,7 @@ static int simplefs_rename(struct inode *old_dir,
     bh_old = sb_bread(sb, ci_old->index_block);
     if (!bh_old)
         return -EIO;
-    dir_block = (struct simplefs_dir_block *) bh_old->b_data;
+    dir_block = (struct sfs_dir_block *) bh_old->b_data;
     /* Search for inode in old directory and number of subfiles */
     for (i = 0; SIMPLEFS_MAX_SUBFILES; i++) {
         if (dir_block->files[i].inode == src->i_ino)
@@ -487,8 +487,8 @@ static int simplefs_rename(struct inode *old_dir,
     /* Remove file from old parent directory */
     if (f_id != SIMPLEFS_MAX_SUBFILES - 1)
         memmove(dir_block->files + f_id, dir_block->files + f_id + 1,
-                (nr_subs - f_id - 1) * sizeof(struct simplefs_file));
-    memset(&dir_block->files[nr_subs - 1], 0, sizeof(struct simplefs_file));
+                (nr_subs - f_id - 1) * sizeof(struct sfs_file));
+    memset(&dir_block->files[nr_subs - 1], 0, sizeof(struct sfs_file));
     mark_buffer_dirty(bh_old);
     brelse(bh_old);
 
@@ -506,19 +506,19 @@ relse_new:
     return ret;
 }
 
-static int simplefs_mkdir(struct inode *dir,
+static int sfs_mkdir(struct inode *dir,
                           struct dentry *dentry,
                           umode_t mode)
 {
-    return simplefs_create(dir, dentry, mode | S_IFDIR, 0);
+    return sfs_create(dir, dentry, mode | S_IFDIR, 0);
 }
 
-static int simplefs_rmdir(struct inode *dir, struct dentry *dentry)
+static int sfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
     struct super_block *sb = dir->i_sb;
     struct inode *inode = d_inode(dentry);
     struct buffer_head *bh;
-    struct simplefs_dir_block *dblock;
+    struct sfs_dir_block *dblock;
 
     /* If the directory is not empty, fail */
     if (inode->i_nlink > 2)
@@ -526,7 +526,7 @@ static int simplefs_rmdir(struct inode *dir, struct dentry *dentry)
     bh = sb_bread(sb, SIMPLEFS_INODE(inode)->index_block);
     if (!bh)
         return -EIO;
-    dblock = (struct simplefs_dir_block *) bh->b_data;
+    dblock = (struct sfs_dir_block *) bh->b_data;
     if (dblock->files[0].inode != 0) {
         brelse(bh);
         return -ENOTEMPTY;
@@ -534,14 +534,14 @@ static int simplefs_rmdir(struct inode *dir, struct dentry *dentry)
     brelse(bh);
 
     /* Remove directory with unlink */
-    return simplefs_unlink(dir, dentry);
+    return sfs_unlink(dir, dentry);
 }
 
-static const struct inode_operations simplefs_inode_ops = {
-    .lookup = simplefs_lookup,
-    .create = simplefs_create,
-    .unlink = simplefs_unlink,
-    .mkdir = simplefs_mkdir,
-    .rmdir = simplefs_rmdir,
-    .rename = simplefs_rename,
+static const struct inode_operations sfs_inode_ops = {
+    .lookup = sfs_lookup,
+    .create = sfs_create,
+    .unlink = sfs_unlink,
+    .mkdir = sfs_mkdir,
+    .rmdir = sfs_rmdir,
+    .rename = sfs_rename,
 };

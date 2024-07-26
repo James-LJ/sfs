@@ -12,7 +12,7 @@
 #define SIMPLEFS_MAX_SUBFILES 128
 
 /*
- * simplefs partition layout
+ * sfs partition layout
  * +---------------+
  * |  superblock   |  1 block
  * +---------------+
@@ -27,7 +27,7 @@
  * +---------------+
  */
 
-struct simplefs_inode {
+struct sfs_inode {
     uint32_t i_mode;      /* File mode */
     uint32_t i_uid;       /* Owner id */
     uint32_t i_gid;       /* Group id */
@@ -41,9 +41,9 @@ struct simplefs_inode {
 };
 
 #define SIMPLEFS_INODES_PER_BLOCK \
-    (SIMPLEFS_BLOCK_SIZE / sizeof(struct simplefs_inode))
+    (SIMPLEFS_BLOCK_SIZE / sizeof(struct sfs_inode))
 
-struct simplefs_sb_info {
+struct sfs_sb_info {
     uint32_t magic; /* Magic number */
 
     uint32_t nr_blocks; /* Total number of blocks (incl sb & inodes) */
@@ -64,39 +64,39 @@ struct simplefs_sb_info {
 
 #ifdef __KERNEL__
 
-struct simplefs_inode_info {
+struct sfs_inode_info {
     uint32_t index_block;
     struct inode vfs_inode;
 };
 
-struct simplefs_file_index_block {
+struct sfs_file_index_block {
     uint32_t blocks[SIMPLEFS_BLOCK_SIZE >> 2];
 };
 
-struct simplefs_dir_block {
-    struct simplefs_file {
+struct sfs_dir_block {
+    struct sfs_file {
         uint32_t inode;
         char filename[SIMPLEFS_FILENAME_LEN];
     } files[SIMPLEFS_MAX_SUBFILES];
 };
 
 /* superblock functions */
-int simplefs_fill_super(struct super_block *sb, void *data, int silent);
+int sfs_fill_super(struct super_block *sb, void *data, int silent);
 
 /* inode functions */
-int simplefs_init_inode_cache(void);
-void simplefs_destroy_inode_cache(void);
-struct inode *simplefs_iget(struct super_block *sb, unsigned long ino);
+int sfs_init_inode_cache(void);
+void sfs_destroy_inode_cache(void);
+struct inode *sfs_iget(struct super_block *sb, unsigned long ino);
 
 /* file functions */
-extern const struct file_operations simplefs_file_ops;
-extern const struct file_operations simplefs_dir_ops;
-extern const struct address_space_operations simplefs_aops;
+extern const struct file_operations sfs_file_ops;
+extern const struct file_operations sfs_dir_ops;
+extern const struct address_space_operations sfs_aops;
 
 /* Getters for superbock and inode */
 #define SIMPLEFS_SB(sb) (sb->s_fs_info)
 #define SIMPLEFS_INODE(inode) \
-    (container_of(inode, struct simplefs_inode_info, vfs_inode))
+    (container_of(inode, struct sfs_inode_info, vfs_inode))
 
 #endif /* __KERNEL__ */
 

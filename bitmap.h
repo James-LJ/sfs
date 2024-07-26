@@ -2,7 +2,7 @@
 #define SIMPLEFS_BITMAP_H
 
 #include <linux/bitmap.h>
-#include "simplefs.h"
+#include "sfs.h"
 
 /*
  * Return the first free bit (set to 1) in a given in-memory bitmap spanning
@@ -27,7 +27,7 @@ static inline uint32_t get_first_free_bit(unsigned long *freemap,
  * Return an unused inode number and mark it used.
  * Return 0 if no free inode was found.
  */
-static inline uint32_t get_free_inode(struct simplefs_sb_info *sbi)
+static inline uint32_t get_free_inode(struct sfs_sb_info *sbi)
 {
     uint32_t ret = get_first_free_bit(sbi->ifree_bitmap, sbi->nr_inodes);
     if (ret)
@@ -39,7 +39,7 @@ static inline uint32_t get_free_inode(struct simplefs_sb_info *sbi)
  * Return an unused block number and mark it used.
  * Return 0 if no free block was found.
  */
-static inline uint32_t get_free_block(struct simplefs_sb_info *sbi)
+static inline uint32_t get_free_block(struct sfs_sb_info *sbi)
 {
     uint32_t ret = get_first_free_bit(sbi->bfree_bitmap, sbi->nr_blocks);
     if (ret)
@@ -66,7 +66,7 @@ static inline int put_free_bit(unsigned long *freemap,
 /*
  * Mark an inode as unused.
  */
-static inline void put_inode(struct simplefs_sb_info *sbi, uint32_t ino)
+static inline void put_inode(struct sfs_sb_info *sbi, uint32_t ino)
 {
     if (put_free_bit(sbi->ifree_bitmap, sbi->nr_inodes, ino))
         return;
@@ -77,7 +77,7 @@ static inline void put_inode(struct simplefs_sb_info *sbi, uint32_t ino)
 /*
  * Mark a block as unused.
  */
-static inline void put_block(struct simplefs_sb_info *sbi, uint32_t bno)
+static inline void put_block(struct sfs_sb_info *sbi, uint32_t bno)
 {
     if (put_free_bit(sbi->bfree_bitmap, sbi->nr_blocks, bno))
         return;

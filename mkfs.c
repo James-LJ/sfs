@@ -6,19 +6,19 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "simplefs.h"
+#include "sfs.h"
 
 struct superblock {
-    struct simplefs_sb_info info;
+    struct sfs_sb_info info;
     char padding[4064]; /* Padding to match block size */
 };
 
-struct simplefs_file_index_block {
+struct sfs_file_index_block {
     uint32_t blocks[SIMPLEFS_BLOCK_SIZE >> 2];
 };
 
-struct simplefs_dir_block {
-    struct simplefs_file {
+struct sfs_dir_block {
+    struct sfs_file {
         uint32_t inode;
         char filename[SIMPLEFS_FILENAME_LEN];
     } files[SIMPLEFS_MAX_SUBFILES];
@@ -93,7 +93,7 @@ static int write_inode_store(int fd, struct superblock *sb)
 {
     int ret = 0;
     uint32_t i;
-    struct simplefs_inode *inode;
+    struct sfs_inode *inode;
     char *block;
     uint32_t first_data_block;
 
@@ -104,7 +104,7 @@ static int write_inode_store(int fd, struct superblock *sb)
     memset(block, 0, SIMPLEFS_BLOCK_SIZE);
 
     /* Root inode (inode 0) */
-    inode = (struct simplefs_inode *) block;
+    inode = (struct sfs_inode *) block;
     first_data_block = 1 + le32toh(sb->info.nr_bfree_blocks) +
                        le32toh(sb->info.nr_ifree_blocks) +
                        le32toh(sb->info.nr_istore_blocks);
@@ -138,7 +138,7 @@ static int write_inode_store(int fd, struct superblock *sb)
     printf(
         "Inode store: wrote %d blocks\n"
         "\tinode size = %ld B\n",
-        i, sizeof(struct simplefs_inode));
+        i, sizeof(struct sfs_inode));
 
 end:
     free(block);

@@ -14,15 +14,15 @@
  * represented by inode. If the requested block is not allocated and create is
  * true,  allocate a new block on disk and map it.
  */
-static int simplefs_file_get_block(struct inode *inode,
+static int sfs_file_get_block(struct inode *inode,
                                    sector_t iblock,
                                    struct buffer_head *bh_result,
                                    int create)
 {
     struct super_block *sb = inode->i_sb;
-    struct simplefs_sb_info *sbi = SIMPLEFS_SB(sb);
-    struct simplefs_inode_info *ci = SIMPLEFS_INODE(inode);
-    struct simplefs_file_index_block *index;
+    struct sfs_sb_info *sbi = SIMPLEFS_SB(sb);
+    struct sfs_inode_info *ci = SIMPLEFS_INODE(inode);
+    struct sfs_file_index_block *index;
     struct buffer_head *bh_index;
     bool alloc = false;
     int ret = 0, bno;
@@ -35,7 +35,7 @@ static int simplefs_file_get_block(struct inode *inode,
     bh_index = sb_bread(sb, ci->index_block);
     if (!bh_index)
         return -EIO;
-    index = (struct simplefs_file_index_block *) bh_index->b_data;
+    index = (struct sfs_file_index_block *) bh_index->b_data;
 
     /*
      * Check if iblock is already allocated. If not and create is true,
@@ -68,18 +68,18 @@ brelse_index:
  * Called by the page cache to read a page from the physical disk and map it in
  * memory.
  */
-static int simplefs_readpage(struct file *file, struct page *page)
+static int sfs_readpage(struct file *file, struct page *page)
 {
-    return mpage_readpage(page, simplefs_file_get_block);
+    return mpage_readpage(page, sfs_file_get_block);
 }
 
 /*
  * Called by the page cache to write a dirty page to the physical disk (when
  * sync is called or when memory is needed).
  */
-static int simplefs_writepage(struct page *page, struct writeback_control *wbc)
+static int sfs_writepage(struct page *page, struct writeback_control *wbc)
 {
-    return block_write_full_page(page, simplefs_file_get_block, wbc);
+    return block_write_full_page(page, sfs_file_get_block, wbc);
 }
 
 /*
@@ -87,7 +87,7 @@ static int simplefs_writepage(struct page *page, struct writeback_control *wbc)
  * data in the page cache. This functions checks if the write will be able to
  * complete and allocates the necessary blocks through block_write_begin().
  */
-static int simplefs_write_begin(struct file *file,
+static int sfs_write_begin(struct file *file,
                                 struct address_space *mapping,
                                 loff_t pos,
                                 unsigned int len,
@@ -95,7 +95,7 @@ static int simplefs_write_begin(struct file *file,
                                 struct page **pagep,
                                 void **fsdata)
 {
-    struct simplefs_sb_info *sbi = SIMPLEFS_SB(file->f_inode->i_sb);
+    struct sfs_sb_info *sbi = SIMPLEFS_SB(file->f_inode->i_sb);
     int err;
     uint32_t nr_allocs = 0;
 
@@ -112,7 +112,7 @@ static int simplefs_write_begin(struct file *file,
 
     /* prepare the write */
     err = block_write_begin(mapping, pos, len, flags, pagep,
-                            simplefs_file_get_block);
+                            sfs_file_get_block);
     /* if this failed, reclaim newly allocated blocks */
     if (err < 0)
         pr_err("newly allocated blocks reclaim not implemented yet\n");
@@ -124,7 +124,7 @@ static int simplefs_write_begin(struct file *file,
  * cache. This functions updates inode metadata and truncates the file if
  * necessary.
  */
-static int simplefs_write_end(struct file *file,
+static int sfs_write_end(struct file *file,
                               struct address_space *mapping,
                               loff_t pos,
                               unsigned int len,
@@ -133,7 +133,7 @@ static int simplefs_write_end(struct file *file,
                               void *fsdata)
 {
     struct inode *inode = file->f_inode;
-    struct simplefs_inode_info *ci = SIMPLEFS_INODE(inode);
+    struct sfs_inode_info *ci = SIMPLEFS_INODE(inode);
     struct super_block *sb = inode->i_sb;
     uint32_t nr_blocks_old;
 
@@ -155,7 +155,7 @@ static int simplefs_write_end(struct file *file,
     if (nr_blocks_old > inode->i_blocks) {
         int i;
         struct buffer_head *bh_index;
-        struct simplefs_file_index_block *index;
+        struct sfs_file_index_block *index;
 
         /* Free unused blocks from page cache */
         truncate_pagecache(inode, inode->i_size);
@@ -168,7 +168,7 @@ static int simplefs_write_end(struct file *file,
                    nr_blocks_old - inode->i_blocks);
             goto end;
         }
-        index = (struct simplefs_file_index_block *) bh_index->b_data;
+        index = (struct sfs_file_index_block *) bh_index->b_data;
 
         for (i = inode->i_blocks - 1; i < nr_blocks_old - 1; i++) {
             put_block(SIMPLEFS_SB(sb), index->blocks[i]);
@@ -181,13 +181,13 @@ end:
     return ret;
 }
 
-const struct address_space_operations simplefs_aops = {
-    .readpage = simplefs_readpage,
-    .writepage = simplefs_writepage,
-    .write_begin = simplefs_write_begin,
-    .write_end = simplefs_write_end};
+const struct address_space_operations sfs_aops = {
+    .readpage = sfs_readpage,
+    .writepage = sfs_writepage,
+    .write_begin = sfs_write_begin,
+    .write_end = sfs_write_end};
 
-const struct file_operations simplefs_file_ops = {
+const struct file_operations sfs_file_ops = {
     .llseek = generic_file_llseek,
     .owner = THIS_MODULE,
     .read_iter = generic_file_read_iter,

@@ -1,6 +1,6 @@
-# simplefs - a simple file system for Linux
+# sfs - a simple file system for Linux
 
-The file system "simplefs" is helpful to understand Linux VFS and file system basics.
+The file system "sfs" is helpful to understand Linux VFS and file system basics.
 The Linux VFS supports multiple file systems. The kernel does most of the work while the file system specific tasks are delegated to the individual file systems through the handlers. Instead of calling the functions directly the kernel uses various Operation Tables, which are a collection of handlers for each operation (these are actually structures of function pointers for each handlers/callbacks). 
 
 The super block operations are set at the time of mounting. The operation tables for inodes and files are set when the inode is opened. The first step before opening an inode is lookup. The inode of a file is looked up by calling the lookup handler of the parent inode. 
@@ -16,18 +16,18 @@ The super block operations are set at the time of mounting. The operation tables
 You can build the kernel module and tool with `make`.
 Generate test image via `make test.img`, which creates a zeroed file of 50 MiB.
 
-You can then mount this image on a system with the simplefs kernel module installed.
+You can then mount this image on a system with the sfs kernel module installed.
 ```shell
-sudo insmod simplefs.ko
+sudo insmod sfs.ko
 mkdir -p test
-sudo mount -o loop -t simplefs test.img test
+sudo mount -o loop -t sfs test.img test
 sudo umount test
-sudo rmmod simplefs
+sudo rmmod sfs
 ```
 
 ## Design
 
-At present, simplefs only provides straightforward features.
+At present, sfs only provides straightforward features.
 
 ### Partition layout
 ```
@@ -41,7 +41,7 @@ Each block is 4 KiB large.
 The superblock is the first block of the partition (block 0). It contains the partition's metadata, such as the number of blocks, number of inodes, number of free inodes/blocks, ...
 
 ### Inode store
-Contains all the inodes of the partition. The maximum number of inodes is equal to the number of blocks of the partition. Each inode contains 40 B of data: standard data such as file size and number of used blocks, as well as a simplefs-specific field called `index_block`. This block contains:
+Contains all the inodes of the partition. The maximum number of inodes is equal to the number of blocks of the partition. Each inode contains 40 B of data: standard data such as file size and number of used blocks, as well as a sfs-specific field called `index_block`. This block contains:
   - for a directory: the list of files in this directory. A directory can contain at most 128 files, and filenames are limited to 28 characters to fit in a single block.
   ```
   inode
@@ -82,5 +82,5 @@ Contains all the inodes of the partition. The maximum number of inodes is equal 
 
 ## License
 
-`simplefs` is released under the BSD 2 clause license. Use of this source code is governed by
+`sfs` is released under the BSD 2 clause license. Use of this source code is governed by
 a BSD-style license that can be found in the LICENSE file.

@@ -1,25 +1,25 @@
-#define pr_fmt(fmt) "simplefs: " fmt
+#define pr_fmt(fmt) "sfs: " fmt
 
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "simplefs.h"
+#include "sfs.h"
 
 /*
  * Iterate over the files contained in dir and commit them in ctx.
  * This function is called by the VFS while ctx->pos changes.
  * Return 0 on success.
  */
-static int simplefs_iterate(struct file *dir, struct dir_context *ctx)
+static int sfs_iterate(struct file *dir, struct dir_context *ctx)
 {
     struct inode *inode = file_inode(dir);
-    struct simplefs_inode_info *ci = SIMPLEFS_INODE(inode);
+    struct sfs_inode_info *ci = SIMPLEFS_INODE(inode);
     struct super_block *sb = inode->i_sb;
     struct buffer_head *bh = NULL;
-    struct simplefs_dir_block *dblock = NULL;
-    struct simplefs_file *f = NULL;
+    struct sfs_dir_block *dblock = NULL;
+    struct sfs_file *f = NULL;
     int i;
 
     /* Check that dir is a directory */
@@ -41,7 +41,7 @@ static int simplefs_iterate(struct file *dir, struct dir_context *ctx)
     bh = sb_bread(sb, ci->index_block);
     if (!bh)
         return -EIO;
-    dblock = (struct simplefs_dir_block *) bh->b_data;
+    dblock = (struct sfs_dir_block *) bh->b_data;
 
     /* Iterate over the index block and commit subfiles */
     for (i = ctx->pos - 2; i < SIMPLEFS_MAX_SUBFILES; i++) {
@@ -59,7 +59,7 @@ static int simplefs_iterate(struct file *dir, struct dir_context *ctx)
     return 0;
 }
 
-const struct file_operations simplefs_dir_ops = {
+const struct file_operations sfs_dir_ops = {
     .owner = THIS_MODULE,
-    .iterate_shared = simplefs_iterate,
+    .iterate_shared = sfs_iterate,
 };
