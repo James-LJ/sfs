@@ -22,8 +22,8 @@
  * +---------------+
  * | bfree bitmap  |  sb->nr_bfree_blocks blocks
  * +---------------+
- * |    data       |
- * |      blocks   |  rest of the blocks
+ * |               |
+ * |  data blocks  |  rest of the blocks
  * +---------------+
  */
 

@@ -13,6 +13,7 @@ static struct kmem_cache *sfs_inode_cache;
 
 int sfs_init_inode_cache(void)
 {
+    pr_info("start to enter sfs_init_inode_cache\n");    
     sfs_inode_cache = kmem_cache_create(
         "sfs_cache", sizeof(struct sfs_inode_info), 0, 0, NULL);
     if (!sfs_inode_cache)
@@ -27,8 +28,11 @@ void sfs_destroy_inode_cache(void)
 
 static struct inode *sfs_alloc_inode(struct super_block *sb)
 {
+
     struct sfs_inode_info *ci =
         kmem_cache_alloc(sfs_inode_cache, GFP_KERNEL);
+
+    pr_info("start to enter sfs_alloc_inode\n");
     if (!ci)
         return NULL;
     inode_init_once(&ci->vfs_inode);
@@ -38,12 +42,14 @@ static struct inode *sfs_alloc_inode(struct super_block *sb)
 static void sfs_destroy_inode(struct inode *inode)
 {
     struct sfs_inode_info *ci = SIMPLEFS_INODE(inode);
+    pr_info("start to enter sfs_alloc_inode\n");    
     kmem_cache_free(sfs_inode_cache, ci);
 }
 
 static int sfs_write_inode(struct inode *inode,
                                 struct writeback_control *wbc)
 {
+
     struct sfs_inode *disk_inode;
     struct sfs_inode_info *ci = SIMPLEFS_INODE(inode);
     struct super_block *sb = inode->i_sb;
@@ -53,6 +59,7 @@ static int sfs_write_inode(struct inode *inode,
     uint32_t inode_block = (ino / SIMPLEFS_INODES_PER_BLOCK) + 1;
     uint32_t inode_shift = ino % SIMPLEFS_INODES_PER_BLOCK;
 
+    pr_info("start to enter sfs_write_inode\n");
     if (ino >= sbi->nr_inodes)
         return 0;
 
@@ -84,6 +91,7 @@ static int sfs_write_inode(struct inode *inode,
 static void sfs_put_super(struct super_block *sb)
 {
     struct sfs_sb_info *sbi = SIMPLEFS_SB(sb);
+    pr_info("start to enter sfs_put_super\n");
     if (sbi) {
         kfree(sbi->ifree_bitmap);
         kfree(sbi->bfree_bitmap);
@@ -101,6 +109,7 @@ static int sfs_sync_fs(struct super_block *sb, int wait)
     struct buffer_head *bh = sb_bread(sb, 0);
     if (!bh)
         return -EIO;
+    pr_info("start to enter sfs_sync_fs\n");    
     disk_sb = (struct sfs_sb_info *) bh->b_data;
 
     disk_sb->nr_blocks = sbi->nr_blocks;
@@ -158,6 +167,7 @@ static int sfs_statfs(struct dentry *dentry, struct kstatfs *stat)
     struct super_block *sb = dentry->d_sb;
     struct sfs_sb_info *sbi = SIMPLEFS_SB(sb);
 
+    pr_info("start to enter sfs_statfs\n");
     stat->f_type = SIMPLEFS_MAGIC;
     stat->f_bsize = SIMPLEFS_BLOCK_SIZE;
     stat->f_blocks = sbi->nr_blocks;
@@ -188,6 +198,7 @@ int sfs_fill_super(struct super_block *sb, void *data, int silent)
     struct inode *root_inode = NULL;
     int ret = 0, i;
 
+    pr_info("start to enter sfs_fill_super\n");
     /* Init sb */
     sb->s_magic = SIMPLEFS_MAGIC;
     sb_set_blocksize(sb, SIMPLEFS_BLOCK_SIZE);
@@ -275,6 +286,7 @@ int sfs_fill_super(struct super_block *sb, void *data, int silent)
         goto free_bfree;
     }
     inode_init_owner(root_inode, NULL, root_inode->i_mode);
+    // 创建根目录dentry
     sb->s_root = d_make_root(root_inode);
     if (!sb->s_root) {
         ret = -ENOMEM;

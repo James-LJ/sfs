@@ -22,6 +22,7 @@ static int sfs_iterate(struct file *dir, struct dir_context *ctx)
     struct sfs_file *f = NULL;
     int i;
 
+    pr_info("start to enter sfs_iterate\n");
     /* Check that dir is a directory */
     if (!S_ISDIR(inode->i_mode))
         return -ENOTDIR;

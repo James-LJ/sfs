@@ -103,6 +103,7 @@ static struct dentry *sfs_lookup(struct inode *dir,
     struct sfs_file *f = NULL;
     int i;
 
+    pr_info("start to enter sfs_lookup\n");
     /* Check filename length */
     if (dentry->d_name.len > SIMPLEFS_FILENAME_LEN)
         return ERR_PTR(-ENAMETOOLONG);
@@ -147,6 +148,7 @@ static struct inode *sfs_new_inode(struct inode *dir, mode_t mode)
     uint32_t ino, bno;
     int ret;
 
+    pr_info("start to enter sfs_new_inode\n");
     /* Check mode before doing anything to avoid undoing everything */
     if (!S_ISDIR(mode) && !S_ISREG(mode)) {
         pr_err(
@@ -227,6 +229,7 @@ static int sfs_create(struct inode *dir,
     struct buffer_head *bh, *bh2;
     int ret = 0, i;
 
+    pr_info("start to enter sfs_create\n");
     /* Check filename length */
     if (strlen(dentry->d_name.name) > SIMPLEFS_FILENAME_LEN)
         return -ENAMETOOLONG;
@@ -318,6 +321,7 @@ static int sfs_unlink(struct inode *dir, struct dentry *dentry)
     uint32_t ino = inode->i_ino;
     uint32_t bno = SIMPLEFS_INODE(inode)->index_block;
 
+    pr_info("start to enter sfs_unlink\n");
     /* Read parent directory index */
     bh = sb_bread(sb, SIMPLEFS_INODE(dir)->index_block);
     if (!bh)
@@ -413,6 +417,7 @@ static int sfs_rename(struct inode *old_dir,
     struct sfs_dir_block *dir_block = NULL;
     int i, f_id = -1, new_pos = -1, ret, nr_subs, f_pos = -1;
 
+    pr_info("start to enter sfs_rename\n");
     /* fail with these unsupported flags */
     if (flags & (RENAME_EXCHANGE | RENAME_WHITEOUT))
         return -EINVAL;
@@ -510,6 +515,7 @@ static int sfs_mkdir(struct inode *dir,
                           struct dentry *dentry,
                           umode_t mode)
 {
+    pr_info("start to enter sfs_mkdir\n");
     return sfs_create(dir, dentry, mode | S_IFDIR, 0);
 }
 
@@ -520,6 +526,7 @@ static int sfs_rmdir(struct inode *dir, struct dentry *dentry)
     struct buffer_head *bh;
     struct sfs_dir_block *dblock;
 
+    pr_info("start to enter sfs_rmdir\n");
     /* If the directory is not empty, fail */
     if (inode->i_nlink > 2)
         return -ENOTEMPTY;

@@ -14,8 +14,10 @@ struct dentry *sfs_mount(struct file_system_type *fs_type,
                               const char *dev_name,
                               void *data)
 {
+
     struct dentry *dentry =
         mount_bdev(fs_type, flags, dev_name, data, sfs_fill_super);
+    pr_info("start to enter sfs_mount\n");    
     if (IS_ERR(dentry))
         pr_err("'%s' mount failure\n", dev_name);
     else

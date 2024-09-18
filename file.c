@@ -7,7 +7,7 @@
 #include <linux/mpage.h>
 
 #include "bitmap.h"
-#include "simplefs.h"
+#include "sfs.h"
 
 /*
  * Map the buffer_head passed in argument with the iblock-th block of the file
@@ -27,6 +27,7 @@ static int sfs_file_get_block(struct inode *inode,
     bool alloc = false;
     int ret = 0, bno;
 
+    pr_info("start to enter sfs_file_get_block\n");
     /* If block number exceeds filesize, fail */
     if (iblock >= SIMPLEFS_BLOCK_SIZE >> 2)
         return -EFBIG;
@@ -70,6 +71,7 @@ brelse_index:
  */
 static int sfs_readpage(struct file *file, struct page *page)
 {
+    pr_info("start to enter sfs_readpage\n");
     return mpage_readpage(page, sfs_file_get_block);
 }
 
@@ -79,6 +81,7 @@ static int sfs_readpage(struct file *file, struct page *page)
  */
 static int sfs_writepage(struct page *page, struct writeback_control *wbc)
 {
+    pr_info("start to enter sfs_writepage\n");
     return block_write_full_page(page, sfs_file_get_block, wbc);
 }
 
@@ -99,6 +102,8 @@ static int sfs_write_begin(struct file *file,
     int err;
     uint32_t nr_allocs = 0;
 
+
+    pr_info("start to enter sfs_write_begin\n");
     /* Check if the write can be completed (enough space?) */
     if (pos + len > SIMPLEFS_MAX_FILESIZE)
         return -ENOSPC;
@@ -137,8 +142,10 @@ static int sfs_write_end(struct file *file,
     struct super_block *sb = inode->i_sb;
     uint32_t nr_blocks_old;
 
+
     /* Complete the write() */
     int ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
+    pr_info("start to enter sfs_write_end\n");
     if (ret < len) {
         pr_err("wrote less than requested.");
         return ret;
